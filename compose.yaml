@@ -1,0 +1,38 @@
+services:
+  api:
+    build: .
+    ports: ["127.0.0.1:8000:8000"]
+    environment:
+      MOCK_URL: http://mock:8001
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://asyncpulse:asyncpulse@postgres:5432/asyncpulse
+    depends_on:
+      mock:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+  mock:
+    build: .
+    command: uvicorn asyncpulse.mock:app --host 0.0.0.0 --port 8001
+    ports: ["127.0.0.1:8001:8001"]
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      retries: 20
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: asyncpulse
+      POSTGRES_PASSWORD: asyncpulse
+      POSTGRES_DB: asyncpulse
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U asyncpulse"]
+      interval: 2s
+      retries: 20
+volumes:
+  postgres-data:
